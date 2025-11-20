@@ -248,14 +248,20 @@ def main():
     nav_action = None
     selected_video_idx = None
 
+    filter_action = False
+    
     def on_mouse(event, x, y, flags, userdata):
-        nonlocal nav_action, selected_video_idx
+        nonlocal nav_action, selected_video_idx, filter_action
         if event != cv2.EVENT_LBUTTONDOWN:
             return
-        tile_w, tile_h, cols, rows, x_offset, y_offset, back_rect, next_rect = userdata
+        tile_w, tile_h, cols, rows, x_offset, y_offset, filter_rect, back_rect, next_rect = userdata
         # Handle top bar buttons first
+        fx1, fy1, fx2, fy2 = filter_rect
         bx1, by1, bx2, by2 = back_rect
         nx1, ny1, nx2, ny2 = next_rect
+        if fx1 <= x <= fx2 and fy1 <= y <= fy2:
+            filter_action = True
+            return
         if bx1 <= x <= bx2 and by1 <= y <= by2:
             nav_action = 'back'
             return
@@ -305,10 +311,11 @@ def main():
         BTN_W, BTN_H, BTN_PAD = 120, 18, 8
         btn_y1 = TOP_MARGIN + (HEADER_H - BTN_H) // 2
         btn_y2 = btn_y1 + BTN_H
+        filter_rect = (screen_w - 3 * BTN_W - 3 * BTN_PAD, btn_y1, screen_w - 2 * BTN_W - 3 * BTN_PAD, btn_y2)
         back_rect = (screen_w - 2 * BTN_W - 2 * BTN_PAD, btn_y1, screen_w - BTN_W - 2 * BTN_PAD, btn_y2)
         next_rect = (screen_w - BTN_W - BTN_PAD, btn_y1, screen_w - BTN_PAD, btn_y2)
 
-        cv2.setMouseCallback(window_name, on_mouse, (tile_w, tile_h, args.cols, args.rows, x_offset, y_offset, back_rect, next_rect))
+        cv2.setMouseCallback(window_name, on_mouse, (tile_w, tile_h, args.cols, args.rows, x_offset, y_offset, filter_rect, back_rect, next_rect))
 
         caps = [cv2.VideoCapture(p) if p else None for p in group_files]
         delay_ms = max(1, int(1000 / args.fps))
@@ -343,10 +350,10 @@ def main():
             grid = np.zeros((screen_h, screen_w, 3), dtype=np.uint8)
 
             cv2.rectangle(grid, (0, TOP_MARGIN), (screen_w, TOP_MARGIN + HEADER_H), (0, 0, 0), -1)
-            cv2.putText(grid, f"Page {page_idx + 1}/{num_pages} - Click=classify F=filter N=next B=back Q=quit",
+            cv2.putText(grid, f"Page {page_idx + 1}/{num_pages} - Click video to classify | Q=quit",
                        (8, TOP_MARGIN + 16), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
 
-            for rect, text in [(back_rect, "Back (B)"), (next_rect, "Next (N)")]:
+            for rect, text in [(filter_rect, "Filter (F)"), (back_rect, "Back (B)"), (next_rect, "Next (N)")]:
                 cv2.rectangle(grid, (rect[0], rect[1]), (rect[2], rect[3]), (60, 60, 60), -1)
                 cv2.rectangle(grid, (rect[0], rect[1]), (rect[2], rect[3]), (200, 200, 200), 1)
                 cv2.putText(grid, text, (rect[0] + 10, rect[3] - 6), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
@@ -443,13 +450,14 @@ def main():
                     dialog_input += chr(key)
                 continue
             
-            if key == ord('f'):
+            if key == ord('f') or filter_action:
+                filter_action = False
                 def update_grid():
                     g = np.zeros((screen_h, screen_w, 3), dtype=np.uint8)
                     cv2.rectangle(g, (0, TOP_MARGIN), (screen_w, TOP_MARGIN + HEADER_H), (0, 0, 0), -1)
-                    cv2.putText(g, f"Page {page_idx + 1}/{num_pages} - Click=classify F=filter N=next B=back Q=quit",
+                    cv2.putText(g, f"Page {page_idx + 1}/{num_pages} - Click video to classify | Q=quit",
                                (8, TOP_MARGIN + 16), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
-                    for rect, text in [(back_rect, "Back (B)"), (next_rect, "Next (N)")]:
+                    for rect, text in [(filter_rect, "Filter (F)"), (back_rect, "Back (B)"), (next_rect, "Next (N)")]:
                         cv2.rectangle(g, (rect[0], rect[1]), (rect[2], rect[3]), (60, 60, 60), -1)
                         cv2.rectangle(g, (rect[0], rect[1]), (rect[2], rect[3]), (200, 200, 200), 1)
                         cv2.putText(g, text, (rect[0] + 10, rect[3] - 6), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
