@@ -219,6 +219,7 @@ def main():
     parser.add_argument("--rows", type=int, default=4)
     parser.add_argument("--cols", type=int, default=4)
     parser.add_argument("--fps", type=float, default=25)
+    parser.add_argument("--speed", type=float, default=2.0, help="Video playback speed multiplier (default: 2.0)")
     args = parser.parse_args()
 
     # Setup paths
@@ -318,7 +319,14 @@ def main():
         cv2.setMouseCallback(window_name, on_mouse, (tile_w, tile_h, args.cols, args.rows, x_offset, y_offset, filter_rect, back_rect, next_rect))
 
         caps = [cv2.VideoCapture(p) if p else None for p in group_files]
-        delay_ms = max(1, int(1000 / args.fps))
+        
+        # Apply speed multiplier: skip frames to achieve speedup
+        frame_skip = max(1, int(args.speed))
+        for cap in caps:
+            if cap and cap.isOpened():
+                pass
+        
+        delay_ms = max(1, int(1000 / (args.fps * args.speed)))
         
         dialog_active, dialog_name, dialog_w, dialog_h, dialog_input = False, "Select Class", 600, 400, ""
         
@@ -374,6 +382,9 @@ def main():
                         ok, frame = cap.read()
                     if ok:
                         tile = cv2.resize(frame, (tile_w, tile_h))
+                        # Skip frames for speedup
+                        for _ in range(frame_skip - 1):
+                            cap.grab()
 
                 stem = group_stems[i]
                 if stem:
@@ -475,6 +486,9 @@ def main():
                                 ok, frame = cap.read()
                             if ok:
                                 tile = cv2.resize(frame, (tile_w, tile_h))
+                                # Skip frames for speedup
+                                for _ in range(frame_skip - 1):
+                                    cap.grab()
                         stem = group_stems[i]
                         if stem:
                             label_key = f"{stem}_{folder_name}"

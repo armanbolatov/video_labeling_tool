@@ -1,6 +1,6 @@
 # Video Labeling Tool
 
-Multi-class video labeling application for conflict classification with 14 categories.
+Multi-class video labeling application.
 
 ## Setup
 
